@@ -130,13 +130,3 @@ Templates can be customised per-journal via the Janeway manager email settings. 
 | `task.error_message` | Error detail (failure email only) |
 | `download_url` | Direct download link (success email only) |
 | `my_reports_url` | Link to the user's reports list |
-
-## File storage
-
-Generated CSVs are written to:
-
-```
-{BASE_DIR}/files/deferred_reports/{task_pk}_{filename}.csv
-```
-
-This directory is created automatically on first use. It is not served directly — downloads go through the `deferred_reports_download` view which checks permissions before streaming the file.
