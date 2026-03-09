@@ -1,0 +1,114 @@
+{% extends "admin/core/base.html" %}
+
+{% block title %}Configure Report: {{ info.name }}{% endblock %}
+{% block title-section %}{{ info.name }}{% endblock %}
+{% block title-sub %}{{ info.description }}{% endblock %}
+
+{% block breadcrumbs %}
+    {{ block.super }}
+    <li><a href="{% url 'deferred_reports_index' %}">Deferred Reports</a></li>
+    <li>{{ info.name }}</li>
+{% endblock %}
+
+{% block body %}
+    <div class="box">
+        <div class="title-area">
+            <h2>
+                {% if articles is not None %}
+                    Select an Article
+                {% else %}
+                    Select a Journal
+                {% endif %}
+            </h2>
+        </div>
+        <div class="content">
+
+            {% if articles is None %}
+            {# Stage 1: journal picker #}
+            <form method="POST">
+                {% csrf_token %}
+                {{ journal_form.report_type }}
+                <div class="row expanded">
+                    <div class="large-4 columns">
+                        <label for="{{ journal_form.journal.id_for_label }}">
+                            {{ journal_form.journal.label }}
+                        </label>
+                        {{ journal_form.journal }}
+                        {% if journal_form.journal.errors %}
+                            {% for error in journal_form.journal.errors %}
+                                <p class="help-text alert">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row expanded">
+                    <div class="large-12 columns">
+                        <a class="button secondary" href="{% url 'deferred_reports_index' %}">
+                            &laquo; Back to Reports
+                        </a>
+                        <button type="submit" class="button">
+                            Load Articles
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {% else %}
+            {# Stage 2: articles table #}
+            <p>Select an article from <strong>{{ journal.name }}</strong>.</p>
+
+            {% if articles %}
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="report_type" value="{{ report_type }}">
+                <input type="hidden" name="journal_id" value="{{ journal.pk }}">
+                <table class="small scroll" id="articles_table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for article in articles %}
+                        <tr>
+                            <td>{{ article.id }}</td>
+                            <td>{{ article.title }}</td>
+                            <td>
+                                <button type="submit" name="article_id"
+                                        value="{{ article.id }}"
+                                        class="button tiny success">
+                                    {% if info.instant %}Run Report{% else %}Queue Report{% endif %}
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+            {% else %}
+                <div class="callout warning">
+                    <p>No articles found for {{ journal.name }}.</p>
+                </div>
+            {% endif %}
+
+            <div class="row expanded">
+                <div class="large-12 columns">
+                    <a class="button secondary"
+                       href="{% url 'deferred_reports_configure' report_type %}">
+                        &laquo; Choose a Different Journal
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+    {% if articles is not None and articles %}
+        {% include "elements/datatables.html" with target="#articles_table" sort="asc" order=1 %}
+    {% endif %}
+{% endblock js %}

@@ -1,0 +1,55 @@
+{% extends "admin/core/base.html" %}
+
+{% block title %}Deferred Reports{% endblock %}
+{% block title-section %}Deferred Reports{% endblock %}
+{% block title-sub %}Reports run in the background and are emailed to you as a CSV download{% endblock %}
+
+{% block breadcrumbs %}
+    {{ block.super }}
+    <li><a href="{% url 'deferred_reports_index' %}">Deferred Reports</a></li>
+{% endblock %}
+
+{% block body %}
+    <div class="box">
+        <div class="title-area">
+            <h2>Available Reports</h2>
+            <a class="button" href="{% url 'deferred_reports_my_reports' %}">
+                My Reports
+                {% if pending_count %}({{ pending_count }} in progress){% endif %}
+            </a>
+        </div>
+        <div class="content">
+            <div class="row expanded">
+                <div class="large-12 columns">
+                    <table class="small scroll" id="report_types_table">
+                        <thead>
+                            <tr>
+                                <th>Report</th>
+                                <th>Description</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report_type, info in report_types.items %}
+                            <tr>
+                                <td><strong>{{ info.name }}</strong></td>
+                                <td>{{ info.description }}</td>
+                                <td>
+                                    <a class="button tiny"
+                                       href="{% url 'deferred_reports_configure' report_type %}">
+                                        Request
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+    {% include "elements/datatables.html" with target="#report_types_table" sort="asc" order=0 %}
+{% endblock js %}
