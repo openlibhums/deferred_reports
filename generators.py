@@ -217,6 +217,77 @@ def generate_articles_report(task):
     write_csv(filepath, rows)
     return filepath
 
+def generate_articles_v2_report(task):
+    """Optimised version of generate_articles_report.
+
+    Produces byte-for-byte identical output to generate_articles_report but
+    replaces the five correlated Subqueries against metrics.ArticleAccess
+    with a single GROUP BY article conditional-aggregation query, merged
+    into the article rows in Python.
+    """
+    start_date, end_date = parse_dates(task.parameters)
+    journal = get_journal(task)
+
+    f_editorial_delta = ExpressionWrapper(
+        F('date_published') - F('date_submitted'),
+        output_field=DurationField(),
+    )
+
+    articles = sm.Article.objects.filter(
+        date_published__lte=timezone.now(),
+        journal=journal,
+    ).select_related('section').annotate(editorial_delta=f_editorial_delta)
+
+    access_counts = mm.ArticleAccess.objects.filter(
+        article__journal=journal,
+        accessed__gte=start_date,
+        accessed__lte=end_date,
+    ).values('article').annotate(
+        abstract_views=Count('id', filter=Q(galley_type__isnull=True)),
+        html_views=Count(
+            'id', filter=Q(galley_type__in=['html', 'xml'], type='view'),
+        ),
+        pdf_views=Count(
+            'id', filter=Q(galley_type='pdf', type='view'),
+        ),
+        pdf_downloads=Count(
+            'id', filter=Q(galley_type='pdf', type='download'),
+        ),
+        other_downloads=Count(
+            'id',
+            filter=Q(type='download') & (
+                ~Q(galley_type='pdf') | Q(galley_type__isnull=True)
+            ),
+        ),
+    )
+    counts_by_article = {row['article']: row for row in access_counts}
+
+    rows = [[
+        'ID', 'Title', 'Section', 'Date Submitted', 'Date Accepted',
+        'Date Published', 'Days to Publication', 'Abstract Views',
+        'HTML Views', 'PDF Views', 'PDF Downloads', 'Other Downloads',
+    ]]
+    for article in articles:
+        counts = counts_by_article.get(article.pk, {})
+        rows.append([
+            article.pk,
+            strip_tags(article.title),
+            article.section.name if article.section else 'No Section',
+            article.date_submitted,
+            article.date_accepted,
+            article.date_published,
+            article.editorial_delta.days if article.editorial_delta else '',
+            counts.get('abstract_views', 0),
+            counts.get('html_views', 0),
+            counts.get('pdf_views', 0),
+            counts.get('pdf_downloads', 0),
+            counts.get('other_downloads', 0),
+        ])
+
+    filepath = report_file_path(task.pk, 'article_metrics_v2.csv')
+    write_csv(filepath, rows)
+    return filepath
+
 def generate_usage_by_month_report(task):
     date_parts = parse_months(task.parameters)
     journals = jm.Journal.objects.filter(is_remote=False, hide_from_press=False)
@@ -1122,6 +1193,7 @@ def generate_preprints_metrics_report(task):
 REPORT_GENERATORS = {
     'press': generate_press_report,
     'articles': generate_articles_report,
+    'articles_v2': generate_articles_v2_report,
     'usage_by_month': generate_usage_by_month_report,
     'production': generate_production_report,
     'geo': generate_geo_report,

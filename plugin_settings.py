@@ -38,6 +38,20 @@ REPORT_TYPES = {
         'needs_journal': True,
         'permission': PERM_EDITOR,
     },
+    'articles_v2': {
+        'name': 'Article Metrics v2',
+        'description': (
+            'One row per published article in the journal, covering all '
+            'currently published articles regardless of date. '
+            'The date range filters the access metrics (views and downloads) '
+            'only; it does not affect which articles are included. '
+            'This is an optimised version that produces the same data as '
+            'Article Metrics with much better performance on large datasets.'
+        ),
+        'form': 'JournalDateReportForm',
+        'needs_journal': True,
+        'permission': PERM_EDITOR,
+    },
     'usage_by_month': {
         'name': 'Journal Usage by Month',
         'description': (
