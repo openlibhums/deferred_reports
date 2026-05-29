@@ -313,6 +313,45 @@ REPORT_TYPES = {
         'needs_journal': False,
         'permission': PERM_EDITOR,
     },
+    'peer_review_data': {
+        'name': 'Peer Review Report Data',
+        'description': (
+            'One row per completed peer review assignment. The date range '
+            'filters on the date the review was returned. Includes reviewer '
+            'name, ORCID, affiliation, date returned, and the article licence. '
+            'Requires a journal.'
+        ),
+        'form': 'JournalDateReportForm',
+        'needs_journal': True,
+        'permission': PERM_EDITOR,
+    },
+    'editor_assignments': {
+        'name': 'Editor Assignment and Status',
+        'description': (
+            'One row per editor assignment. The date range filters on the '
+            'date the editor was assigned. Shows submission date, editor '
+            'name, the decision made (accept, decline, or revision type), '
+            'and the date that decision was made. '
+            'Requires a journal.'
+        ),
+        'form': 'JournalDateReportForm',
+        'needs_journal': True,
+        'permission': PERM_EDITOR,
+    },
+    'reviewer_status': {
+        'name': 'Reviewer Status',
+        'description': (
+            'One row per review round per article. The date range filters '
+            'on the date the review round started. Shows totals for invited, '
+            'agreed, declined, and no-response reviewers, plus min/max/avg '
+            'times (in days) for invitation response and review completion. '
+            'Missing times are reported as 0. '
+            'Requires a journal.'
+        ),
+        'form': 'JournalDateReportForm',
+        'needs_journal': True,
+        'permission': PERM_EDITOR,
+    },
     'preprints_metrics': {
         'name': 'Preprints Metrics',
         'description': (

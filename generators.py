@@ -1145,6 +1145,161 @@ def generate_licenses_report(task):
     write_csv(filepath, rows)
     return filepath
 
+def generate_peer_review_data_report(task):
+    start_date, end_date = parse_dates(task.parameters)
+    journal = get_journal(task)
+    if not journal:
+        raise ValueError('Peer review data report requires a journal.')
+
+    assignments = rm.ReviewAssignment.objects.filter(
+        article__journal=journal,
+        is_complete=True,
+        date_complete__isnull=False,
+        date_complete__gte=start_date,
+        date_complete__lte=end_date,
+    ).select_related('article', 'reviewer', 'article__license').order_by(
+        'article', 'date_complete',
+    )
+
+    rows = [[
+        'Article ID', 'Article Title', 'Article DOI',
+        'Reviewer Name', 'Reviewer ORCID', 'Reviewer Affiliation',
+        'Date Review Returned', 'Article Licence',
+    ]]
+    for ra in assignments:
+        rows.append([
+            ra.article.pk,
+            strip_tags(ra.article.title),
+            ra.article.get_doi() or '',
+            ra.reviewer.full_name(),
+            ra.reviewer.orcid or '',
+            ra.reviewer.affiliation(),
+            ra.date_complete,
+            ra.article.license.name if ra.article.license else '',
+        ])
+
+    filepath = report_file_path(task.pk, 'peer_review_data.csv')
+    write_csv(filepath, rows)
+    return filepath
+
+
+def generate_editor_assignment_report(task):
+    start_date, end_date = parse_dates(task.parameters)
+    journal = get_journal(task)
+    if not journal:
+        raise ValueError('Editor assignment report requires a journal.')
+
+    assignments = rm.EditorAssignment.objects.filter(
+        article__journal=journal,
+        assigned__gte=start_date,
+        assigned__lte=end_date,
+    ).select_related('article', 'editor').order_by('article', 'assigned')
+
+    rows = [[
+        'Article ID', 'Article Title', 'Date Submitted',
+        'Editor Assigned', 'Editor Name',
+        'Decision', 'Date Decision Made', 'Date Author Notified',
+    ]]
+    for ea in assignments:
+        article = ea.article
+        if article.date_accepted:
+            decision = 'Accept'
+            decision_date = article.date_accepted
+        elif article.date_declined:
+            decision = 'Decline'
+            decision_date = article.date_declined
+        else:
+            rev = rm.RevisionRequest.objects.filter(
+                article=article,
+            ).order_by('date_requested').first()
+            if rev:
+                decision = rev.get_type_display()
+                decision_date = rev.date_requested
+            else:
+                decision = 'n/a'
+                decision_date = 'n/a'
+        rows.append([
+            article.pk,
+            strip_tags(article.title),
+            article.date_submitted,
+            ea.assigned,
+            ea.editor.full_name(),
+            decision,
+            decision_date,
+            decision_date,
+        ])
+
+    filepath = report_file_path(task.pk, 'editor_assignments.csv')
+    write_csv(filepath, rows)
+    return filepath
+
+
+def generate_reviewer_status_report(task):
+    start_date, end_date = parse_dates(task.parameters)
+    journal = get_journal(task)
+    if not journal:
+        raise ValueError('Reviewer status report requires a journal.')
+
+    rounds = rm.ReviewRound.objects.filter(
+        article__journal=journal,
+        date_started__gte=start_date,
+        date_started__lte=end_date,
+    ).select_related('article').order_by('article', 'round_number')
+
+    rows = [[
+        'Article ID', 'Article Title', 'Review Round',
+        'Total Invited', 'Agreed', 'Declined', 'No Response', 'Reviews Submitted',
+        'Min Response Time (days)', 'Max Response Time (days)', 'Avg Response Time (days)',
+        'Min Review Time (days)', 'Max Review Time (days)', 'Avg Review Time (days)',
+    ]]
+    for rr in rounds:
+        assignments = rr.reviewassignment_set.all()
+        total = assignments.count()
+        agreed = assignments.filter(date_accepted__isnull=False).count()
+        declined = assignments.filter(
+            date_declined__isnull=False, decision__isnull=True,
+        ).count()
+        no_response = assignments.filter(
+            date_accepted__isnull=True,
+            date_declined__isnull=True,
+        ).count()
+        completed = assignments.filter(
+            is_complete=True, date_complete__isnull=False,
+        ).count()
+
+        response_times = [
+            (ra.date_accepted - ra.date_requested).days
+            for ra in assignments
+            if ra.date_accepted and ra.date_requested
+        ]
+        completion_times = [
+            (ra.date_complete - ra.date_accepted).days
+            for ra in assignments
+            if ra.date_complete and ra.date_accepted and ra.is_complete
+        ]
+
+        rows.append([
+            rr.article.pk,
+            strip_tags(rr.article.title),
+            rr.round_number,
+            total,
+            agreed,
+            declined,
+            no_response,
+            completed,
+            min(response_times) if response_times else 0,
+            max(response_times) if response_times else 0,
+            round(sum(response_times) / len(response_times)) if response_times else 0,
+            min(completion_times) if completion_times else 0,
+            max(completion_times) if completion_times else 0,
+            round(sum(completion_times) / len(completion_times)) if completion_times else 0,
+        ])
+
+    filepath = report_file_path(task.pk, 'reviewer_status.csv')
+    write_csv(filepath, rows)
+    return filepath
+
+
 def generate_preprints_metrics_report(task):
     start_date, end_date = parse_dates(task.parameters)
 
@@ -1216,4 +1371,7 @@ REPORT_GENERATORS = {
     'yearly_stats': generate_yearly_stats_report,
     'under_review': generate_under_review_report,
     'first_decision': generate_first_decision_report,
+    'peer_review_data': generate_peer_review_data_report,
+    'editor_assignments': generate_editor_assignment_report,
+    'reviewer_status': generate_reviewer_status_report,
 }
