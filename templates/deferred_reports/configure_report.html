@@ -1,0 +1,91 @@
+{% extends "admin/core/base.html" %}
+
+{% block title %}Configure Report: {{ info.name }}{% endblock %}
+{% block title-section %}{{ info.name }}{% endblock %}
+{% block title-sub %}{{ info.description }}{% endblock %}
+
+{% block breadcrumbs %}
+    {{ block.super }}
+    <li><a href="{% url 'deferred_reports_index' %}">Deferred Reports</a></li>
+    <li>{{ info.name }}</li>
+{% endblock %}
+
+{% block body %}
+    <div class="box">
+        <div class="title-area">
+            <h2>Configure Report</h2>
+        </div>
+        <div class="content">
+            <form method="POST">
+                {% csrf_token %}
+                {{ form.report_type }}
+
+                {% if form.errors %}
+                <div class="row expanded">
+                    <div class="large-6 columns">
+                        <div class="callout alert">
+                            <p><strong>Please correct the errors below.</strong></p>
+                            {{ form.errors }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if info.needs_journal %}
+                <div class="row expanded">
+                    <div class="large-6 columns">
+                        {% if request.journal %}
+                            <div class="callout primary">
+                                <p>This report will be generated for
+                                <strong>{{ request.journal.name }}</strong>.</p>
+                            </div>
+                        {% else %}
+                            <div class="callout warning">
+                                <p>This report requires a journal context.
+                                Please access this page from within a journal.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% for field in form %}
+                    {% if not field.is_hidden %}
+                    <div class="row expanded">
+                        <div class="large-3 columns">
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+                                {% if field.field.required %}
+                                    <small>Required</small>
+                                {% endif %}
+                            </label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <p class="help-text">{{ field.help_text }}</p>
+                            {% endif %}
+                            {% if field.errors %}
+                                {% for error in field.errors %}
+                                    <p class="help-text alert">{{ error }}</p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+
+                <div class="row expanded">
+                    <div class="large-12 columns">
+                        <a class="button secondary"
+                           href="{% url 'deferred_reports_index' %}">
+                            &laquo; Back to Reports
+                        </a>
+                        <button type="submit" class="button success"
+                            {% if info.needs_journal and not request.journal %}disabled{% endif %}>
+                            {% if info.instant %}Run Report{% else %}Queue Report{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

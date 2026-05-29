@@ -1,0 +1,71 @@
+{% extends "admin/core/base.html" %}
+
+{% block title %}Configure Report: {{ info.name }}{% endblock %}
+{% block title-section %}{{ info.name }}{% endblock %}
+{% block title-sub %}{{ info.description }}{% endblock %}
+
+{% block breadcrumbs %}
+    {{ block.super }}
+    <li><a href="{% url 'deferred_reports_index' %}">Deferred Reports</a></li>
+    <li>{{ info.name }}</li>
+{% endblock %}
+
+{% block body %}
+    <div class="box">
+        <div class="title-area">
+            <h2>Select a Book</h2>
+        </div>
+        <div class="content">
+            {% if books %}
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="report_type" value="{{ report_type }}">
+                <table class="small scroll" id="books_table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>DOI</th>
+                            <th>Published</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for book in books %}
+                        <tr>
+                            <td>{{ book.title }}</td>
+                            <td>{{ book.doi }}</td>
+                            <td>{{ book.date_published|date:"Y-m-d" }}</td>
+                            <td>
+                                <button type="submit" name="book_id"
+                                        value="{{ book.pk }}"
+                                        class="button tiny success">
+                                    {% if info.instant %}Run Report{% else %}Queue Report{% endif %}
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+            {% else %}
+                <div class="callout warning">
+                    <p>No published books found.</p>
+                </div>
+            {% endif %}
+
+            <div class="row expanded">
+                <div class="large-12 columns">
+                    <a class="button secondary" href="{% url 'deferred_reports_index' %}">
+                        &laquo; Back to Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+    {% if books %}
+        {% include "elements/datatables.html" with target="#books_table" sort="asc" order=0 %}
+    {% endif %}
+{% endblock js %}
